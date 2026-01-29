@@ -465,12 +465,12 @@ export class HttpApiProxyServer {
           if (
             this.settings.proxyBehavior === "SAVE_RESPONSES_AND_DELETE_UNUSED"
           ) {
-            for (const requestId of this.initialCachedRequestIds) {
+            this.initialCachedRequestIds.forEach((requestId) => {
               if (!this.usedRequestIds.has(requestId)) {
                 this.cache.deleteResponse(requestId);
                 print(`Deleted unused response:     ${requestId}`);
               }
-            }
+            });
           }
           resolve(undefined);
         }
