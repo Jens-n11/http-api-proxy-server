@@ -7,6 +7,7 @@ import { fallbackHeaders, ProxyResponse, Request } from "./proxy-server";
 
 export class ResponseCacheConnector {
   private cacheDirPath: string[];
+  private responseFilePrefix = "responseFor";
 
   constructor(cacheDirPath: string[] = ["responses"]) {
     this.cacheDirPath = cacheDirPath;
@@ -32,6 +33,26 @@ export class ResponseCacheConnector {
       headers: fileContentAsJson.headers || fallbackHeaders,
       body: fileContentAsJson.body,
     };
+  };
+
+  listResponseIds = (): string[] => {
+    const responseDir = this.requireDir();
+    return fs
+      .readdirSync(responseDir)
+      .filter(
+        (fileName) =>
+          fileName.startsWith(this.responseFilePrefix) &&
+          fileName.endsWith(".json") &&
+          !fileName.endsWith(".meta.json")
+      )
+      .map((fileName) => fileName.replace(".json", ""));
+  };
+
+  deleteResponse = (requestId: string) => {
+    const responseFilePath = this.filePathForRequestId(requestId);
+    const metaInfoFilePath = this.metaInfoFilePathForRequestId(requestId);
+    if (fs.existsSync(responseFilePath)) fs.unlinkSync(responseFilePath);
+    if (fs.existsSync(metaInfoFilePath)) fs.unlinkSync(metaInfoFilePath);
   };
 
   saveResponse = (request: Request, response: ProxyResponse) => {
