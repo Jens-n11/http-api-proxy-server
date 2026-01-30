@@ -28,6 +28,7 @@ Whenever you need to start or stop the proxy, it is simple: run `await server.st
 The settings in the HttpApiProxyServer constructor also allow you to specify a **proxyBehavior**, which otherwise is just assumed to be the default SAVE_RESPONSES_FOR_NEW_QUERIES, which will result in the behavior, as described above.
 Alternatively you can set the **proxyBehavior** to: 
 - RELOAD_RESPONSES_WITH_ERRORS: Same as default, but responses will only get cached as soon as they stop containing any errors
+- SAVE_RESPONSES_AND_DELETE_UNUSED: Same as default, but removes cached responses that were never used between `start()` and `stop()`.
 - NO_REQUEST_FORWARDING: Just use the local response files and return errors in case there is no fitting response file.
 (Use this to make sure the target API behind the proxy is not used after you setup stuff)
 - FORCE_UPDATE_ALL: Use this to tell the proxy server to ignore existing responses, and save the updated versions from the target API.

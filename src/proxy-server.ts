@@ -41,6 +41,7 @@ type ProxyResponses = Record<RequestId, ProxyResponse>;
 type MatchPaths = { value: string; path: string };
 type ProxyBehavior =
   | "SAVE_RESPONSES_FOR_NEW_QUERIES" // Default
+  | "SAVE_RESPONSES_AND_DELETE_UNUSED"
   | "RELOAD_RESPONSES_WITH_ERRORS"
   | "NO_REQUEST_FORWARDING" // Just use the local response files AND return errors in case there is no fitting response file
   | "FORCE_UPDATE_ALL";
@@ -224,6 +225,8 @@ export class HttpApiProxyServer {
   private initialSettings: HttpApiProxyServerSettings;
   private cache: ResponseCacheConnector;
   private httpServer: HttpServer;
+  private initialCachedRequestIds: Set<RequestId> = new Set();
+  private usedRequestIds: Set<RequestId> = new Set();
 
   /**
    * @description
@@ -305,12 +308,18 @@ export class HttpApiProxyServer {
 
   private resolveRequest = async (request: Request): Promise<ProxyResponse> => {
     const localResponse = this.getLocalResponseIfExists(request.requestId);
+    if (this.settings.proxyBehavior === "SAVE_RESPONSES_AND_DELETE_UNUSED") {
+      this.usedRequestIds.add(request.requestId);
+    }
 
     switch (this.settings.proxyBehavior) {
       case "FORCE_UPDATE_ALL":
         return this.getApiResponseAndSaveToLocal(request);
 
       case "SAVE_RESPONSES_FOR_NEW_QUERIES":
+        return localResponse || this.getApiResponseAndSaveToLocal(request);
+
+      case "SAVE_RESPONSES_AND_DELETE_UNUSED":
         return localResponse || this.getApiResponseAndSaveToLocal(request);
 
       case "RELOAD_RESPONSES_WITH_ERRORS":
@@ -426,6 +435,12 @@ export class HttpApiProxyServer {
 
   start = async () =>
     new Promise((resolve, reject) => {
+      if (this.settings.proxyBehavior === "SAVE_RESPONSES_AND_DELETE_UNUSED") {
+        this.initialCachedRequestIds = new Set(
+          this.cache.listResponseIds() as RequestId[]
+        );
+        this.usedRequestIds = new Set();
+      }
       this.httpServer.listen(
         this.settings.proxyPort,
         undefined,
@@ -447,6 +462,19 @@ export class HttpApiProxyServer {
           print("HttpApiProxyServer failed to stop!");
           reject(error);
         } else {
+          if (
+            this.settings.proxyBehavior === "SAVE_RESPONSES_AND_DELETE_UNUSED"
+          ) {
+            const deletedRequestIds: RequestId[] = [];
+            this.initialCachedRequestIds.forEach((requestId) => {
+              if (!this.usedRequestIds.has(requestId)) {
+                this.cache.deleteResponse(requestId);
+                deletedRequestIds.push(requestId);
+                print(`Deleted unused response:     ${requestId}`);
+              }
+            });
+            this.cache.pruneApiQueryLog(deletedRequestIds);
+          }
           resolve(undefined);
         }
       });

@@ -7,6 +7,7 @@ import { fallbackHeaders, ProxyResponse, Request } from "./proxy-server";
 
 export class ResponseCacheConnector {
   private cacheDirPath: string[];
+  private responseFilePrefix = "responseFor";
 
   constructor(cacheDirPath: string[] = ["responses"]) {
     this.cacheDirPath = cacheDirPath;
@@ -32,6 +33,48 @@ export class ResponseCacheConnector {
       headers: fileContentAsJson.headers || fallbackHeaders,
       body: fileContentAsJson.body,
     };
+  };
+
+  listResponseIds = (): string[] => {
+    const responseDir = this.requireDir();
+    return fs
+      .readdirSync(responseDir)
+      .filter(
+        (fileName) =>
+          fileName.startsWith(this.responseFilePrefix) &&
+          fileName.endsWith(".json") &&
+          !fileName.endsWith(".meta.json")
+      )
+      .map((fileName) => fileName.replace(".json", ""));
+  };
+
+  deleteResponse = (requestId: string) => {
+    const responseFilePath = this.filePathForRequestId(requestId);
+    const metaInfoFilePath = this.metaInfoFilePathForRequestId(requestId);
+    if (fs.existsSync(responseFilePath)) fs.unlinkSync(responseFilePath);
+    if (fs.existsSync(metaInfoFilePath)) fs.unlinkSync(metaInfoFilePath);
+  };
+
+  pruneApiQueryLog = (deletedRequestIds: string[]) => {
+    if (deletedRequestIds.length === 0) return;
+    const responseDir = this.requireDir();
+    const logPath = path.join(responseDir, "apiQuery.log");
+    if (!fs.existsSync(logPath)) return;
+
+    const deletedFilePaths = new Set(
+      deletedRequestIds.map((requestId) => this.filePathForRequestId(requestId))
+    );
+    const logContent = fs.readFileSync(logPath, "utf8");
+    const entries = logContent
+      .split(/\n\n+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    const filteredEntries = entries.filter((entry) => {
+      const firstLine = entry.split("\n")[0] ?? "";
+      return !deletedFilePaths.has(firstLine.split(",")[0] ?? "");
+    });
+    const nextContent = filteredEntries.join("\n\n");
+    fs.writeFileSync(logPath, nextContent ? `${nextContent}\n\n` : "");
   };
 
   saveResponse = (request: Request, response: ProxyResponse) => {
