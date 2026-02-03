@@ -308,9 +308,6 @@ export class HttpApiProxyServer {
 
   private resolveRequest = async (request: Request): Promise<ProxyResponse> => {
     const localResponse = this.getLocalResponseIfExists(request.requestId);
-    if (this.settings.proxyBehavior === "SAVE_RESPONSES_AND_DELETE_UNUSED") {
-      this.usedRequestIds.add(request.requestId);
-    }
 
     switch (this.settings.proxyBehavior) {
       case "FORCE_UPDATE_ALL":
@@ -320,6 +317,7 @@ export class HttpApiProxyServer {
         return localResponse || this.getApiResponseAndSaveToLocal(request);
 
       case "SAVE_RESPONSES_AND_DELETE_UNUSED":
+        this.usedRequestIds.add(request.requestId);
         return localResponse || this.getApiResponseAndSaveToLocal(request);
 
       case "RELOAD_RESPONSES_WITH_ERRORS":
