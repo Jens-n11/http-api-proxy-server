@@ -55,28 +55,6 @@ export class ResponseCacheConnector {
     if (fs.existsSync(metaInfoFilePath)) fs.unlinkSync(metaInfoFilePath);
   };
 
-  pruneApiQueryLog = (deletedRequestIds: string[]) => {
-    if (deletedRequestIds.length === 0) return;
-    const responseDir = this.requireDir();
-    const logPath = path.join(responseDir, "apiQuery.log");
-    if (!fs.existsSync(logPath)) return;
-
-    const deletedFilePaths = new Set(
-      deletedRequestIds.map((requestId) => this.filePathForRequestId(requestId))
-    );
-    const logContent = fs.readFileSync(logPath, "utf8");
-    const entries = logContent
-      .split(/\n\n+/)
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-    const filteredEntries = entries.filter((entry) => {
-      const firstLine = entry.split("\n")[0] ?? "";
-      return !deletedFilePaths.has(firstLine.split(",")[0] ?? "");
-    });
-    const nextContent = filteredEntries.join("\n\n");
-    fs.writeFileSync(logPath, nextContent ? `${nextContent}\n\n` : "");
-  };
-
   saveResponse = (request: Request, response: ProxyResponse) => {
     if (!request.url) {
       throw new Error(
