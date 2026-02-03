@@ -463,15 +463,12 @@ export class HttpApiProxyServer {
           if (
             this.settings.proxyBehavior === "SAVE_RESPONSES_AND_DELETE_UNUSED"
           ) {
-            const deletedRequestIds: RequestId[] = [];
             this.initialCachedRequestIds.forEach((requestId) => {
               if (!this.usedRequestIds.has(requestId)) {
                 this.cache.deleteResponse(requestId);
-                deletedRequestIds.push(requestId);
                 print(`Deleted unused response:     ${requestId}`);
               }
             });
-            this.cache.pruneApiQueryLog(deletedRequestIds);
           }
           resolve(undefined);
         }
